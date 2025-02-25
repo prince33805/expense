@@ -48,13 +48,13 @@ export class ExpensesController {
   // by category
 
   @Get()
-  @ApiOperation({ summary: 'Get all categories' }) // ✅ Summary in Swagger
+  @ApiOperation({ summary: 'Get all expense' }) // ✅ Summary in Swagger
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1, description: 'Page number', default: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10, description: 'Limit number', default: 10 })
   @ApiQuery({ name: 'startDate', required: false, type: Date, example: '2022-12-12', description: 'Start Date' })
   @ApiQuery({ name: 'endDate', required: false, type: Date, example: '2024-12-12', description: 'End Date' })
   @ApiQuery({ name: 'categoryId', required: false, type: Number, description: 'CategoryId' })
-  @ApiResponse({ status: 200, description: 'Get All categories successfully' }) // ✅ Success response
+  @ApiResponse({ status: 200, description: 'Get All expense successfully' }) // ✅ Success response
   @ApiResponse({ status: 401, description: 'Invalid password credentials' })
   @ApiResponse({ status: 500, description: 'Error Internal Server' }) // Handle conflict error
   findAll(
@@ -89,7 +89,7 @@ export class ExpensesController {
   @ApiResponse({ status: 200, description: 'Update a expense successfully' }) // ✅ Success response
   @ApiResponse({ status: 401, description: 'Unauthorized' }) // ✅ Error response
   @ApiResponse({ status: 404, description: 'expense not found' }) // ✅ Error response
-  @ApiResponse({ status: 409, description: 'expense with the name is already exists' }) // ✅ Error response
+  // @ApiResponse({ status: 409, description: 'expense with the name is already exists' }) // ✅ Error response
   @ApiResponse({ status: 500, description: 'Error Internal Server' }) // Handle conflict error
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
   update(@Param('id') id: string, @Body() updateExpenseDto: UpdateExpenseDto) {

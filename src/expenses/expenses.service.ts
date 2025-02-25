@@ -7,8 +7,8 @@ import { Expense } from './entities/expense.entity';
 import { Category } from '../categories/entities/category.entity';
 import { REQUEST } from '@nestjs/core';
 import * as jwt from 'jsonwebtoken';
-import { AuthService } from 'src/auth/auth.service';
-import { User } from 'src/users/entities/user.entity';
+import { AuthService } from '../auth/auth.service';
+import { User } from '../users/entities/user.entity';
 
 @Injectable({ scope: Scope.REQUEST }) // Makes the service request-scoped
 export class ExpensesService {
@@ -26,16 +26,19 @@ export class ExpensesService {
   async create(createExpenseDto: CreateExpenseDto): Promise<Expense | null> {
     try {
       const { title, amount, date, categoryId } = createExpenseDto;
-
       // ✅ Use the reusable function from AuthService
       const authHeader = (this.request as any).authHeader;
+      // console.log('🔹 Auth Header:', authHeader); // ✅ Log auth header
       const { userId } = await this.authService.validateToken(authHeader);
+      // console.log('🔹 User ID:', userId); // ✅ Log extracted user ID
       // Check if the category exists
       const category = await this.categoryRepository.findOne({ where: { id: categoryId } });
+      // console.log('🔹 Category Found:', category); // ✅ Log category result
       if (!category) {
+        // console.log('❌ Category not found! Throwing NotFoundException.');
         throw new NotFoundException(`Category with ID ${categoryId} not found`);
       }
-
+      // console.log('✅ Proceeding to create expense...');
       // ✅ Create expense with a user reference
       const expense = this.expenseRepository.create({
         title,
@@ -44,10 +47,11 @@ export class ExpensesService {
         category,
         user: { id: userId } as any, // ✅ Assign user as an object with ID
       });
-
-      return await this.expenseRepository.save(expense);
-
+      const savedExpense = await this.expenseRepository.save(expense);
+      // console.log('✅ Expense saved successfully:', savedExpense); // ✅ Log saved expense
+      return savedExpense;
     } catch (error) {
+      // console.error('🔥 Error in create():', error);
       if (error instanceof NotFoundException) throw error; // ✅ Preserve ConflictException
       throw new InternalServerErrorException('Error occurred while fetching expense');
     }
@@ -72,7 +76,7 @@ export class ExpensesService {
 
       let whereConditions: any = { user: { id: userId } };
       // Add date range filter if provided
-      
+
       if (startDate && endDate) {
         whereConditions.date = Between(startDate, endDate);
       } else if (startDate) {
@@ -87,7 +91,7 @@ export class ExpensesService {
       }
       // Build query conditions based on filters
 
-      console.log("whereConditions", whereConditions)
+      // console.log("whereConditions", whereConditions)
       const [expenses, total] = await this.expenseRepository.findAndCount({
         // where: { user: { id: userId } }, // Use the user ID directly in the where clause
         where: whereConditions,
@@ -115,6 +119,9 @@ export class ExpensesService {
         totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
+      if (error instanceof NotFoundException || error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new InternalServerErrorException(error.message || 'Error occurred while fetching expense');
     }
   }
@@ -122,9 +129,12 @@ export class ExpensesService {
   async findOne(id: number): Promise<Expense | null> {
     try {
       const authHeader = (this.request as any).authHeader;
+      // console.log('Auth Header:', authHeader);
       const { userId } = await this.authService.validateToken(authHeader);
+      // console.log('User ID from token:', userId);
       // Fetch the user instance from the database using the userId
       const user = await this.userRepository.findOne({ where: { id: userId } });
+      // console.log('User found:', user);
       if (!user) {
         throw new UnauthorizedException('User not found');
       }
@@ -147,7 +157,9 @@ export class ExpensesService {
       }
       return expense
     } catch (error) {
-      if (error instanceof NotFoundException) throw error
+      if (error instanceof NotFoundException || error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Error occurred while fetching expense');
     }
   }
@@ -211,7 +223,9 @@ export class ExpensesService {
         },
       });
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
+      if (error instanceof NotFoundException || error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Error occurred while fetching expense');
     }
   }
@@ -234,19 +248,26 @@ export class ExpensesService {
       await this.expenseRepository.softRemove(expense);
       return { message: `Expense with ID ${id} has been soft deleted` };
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
+      if (error instanceof NotFoundException || error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Error occurred while fetching expense');
     }
   }
 
   async generateReport(
-    startDate: string, 
+    startDate: string,
     endDate: string
   ): Promise<any> {
     try {
       // Retrieve the auth header and validate the token
       const authHeader = (this.request as any).authHeader;
       const { userId } = await this.authService.validateToken(authHeader);
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
       // console.log("userId",userId)
       // Fetch expenses grouped by category and sum total expenses for each category
       const report = await this.expenseRepository
@@ -260,18 +281,20 @@ export class ExpensesService {
         .groupBy('category.id')
         .addGroupBy('category.name')
         .getRawMany();
-  
+
       // If no data, return a meaningful message
       if (!report || report.length === 0) {
         throw new NotFoundException('No expenses found for the given date range');
       }
-  
+
       // Return the report
       return report;
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
+      if (error instanceof NotFoundException || error instanceof UnauthorizedException) {
+        throw error;
+      }
       throw new InternalServerErrorException(error.message || 'Error occurred while generating the report');
     }
   }
-  
+
 }
