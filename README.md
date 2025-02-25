@@ -32,6 +32,13 @@
 $ npm install
 ```
 
+## add .env 
+
+```bash
+JWT_SECRET=68e4ddcd065a6e390887a757fe697715170fb1f488bd6c79e764748ae60eecf8
+JWT_EXPIRES_IN=12h
+```
+
 ## Compile and run the project
 
 ```bash
